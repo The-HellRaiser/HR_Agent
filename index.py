@@ -14,6 +14,17 @@ from urllib.parse import urlencode, urlparse, parse_qs
 ZOOM_API_KEY = "Uk0EINMjQ76NRkdPBBC5xw"
 ZOOM_API_SECRET = "bLiKS6j9PjNcS7UbSEFsQ5A4iA411uJ5"
 
+# Job Description Constants
+JOB_DESCRIPTION = """
+Senior Software Engineer Position:
+- Lead development of AI-powered applications
+- 5+ years of Python development experience
+- Expert knowledge of machine learning frameworks (PyTorch, TensorFlow)
+- Experience with cloud platforms (AWS/Azure/GCP)
+- Strong system design and architecture skills
+- Team leadership experience
+"""
+
 def parse_zoom_url(url):
     """Extract meeting ID and password from a Zoom URL"""
     parsed = urlparse(url)
@@ -60,12 +71,19 @@ client = ZoomClient(ZOOM_API_KEY, ZOOM_API_SECRET,api_account_id="cEXnlrthTEeW19
 
 def speak_reply(text):
     engine = pyttsx3.init()
-    engine.setProperty("rate", 150)  # Adjust speed
-    engine.save_to_file(text, "response.wav")
+    engine.setProperty("rate", 150)
+    
+    # Set the output device to the virtual audio cable
+    # Find the device index of your virtual cable.  The following code may help:
+    devices = sd.query_devices()
+    print(devices)
+    # Then, replace 'device_index' with the correct index.
+    
+    # Example for macOS with BlackHole (you might need to adjust the device index)
+    engine.setProperty('output_device', 1)  # Replace device_index with the correct index
+    
+    engine.say(text)
     engine.runAndWait()
-
-    # Play response through BlackHole
-    subprocess.run(["ffplay", "-nodisp", "-autoexit", "-ac", "2", "-i", "response.wav", "-f", "pulse", "-device", "BlackHole 2ch"])
 
 # Audio buffer
 samplerate = 16000  # Whisper operates at 16kHz
@@ -91,6 +109,40 @@ def generate_and_speak_response(user_text):
     except requests.exceptions.RequestException as e:
         print(f"Error communicating with Ollama: {e}")
         return None
+
+def generate_interview_question(previous_response=None):
+    """Generate contextual interview questions"""
+    prompt = f"""
+    Job Description: {JOB_DESCRIPTION}
+    Previous Response: {previous_response if previous_response else 'None'}
+    
+    Generate a natural, conversational interview question that:
+    1. Is relevant to the job requirements
+    2. Follows up on the candidate's previous response if available
+    3. Maintains a professional but friendly tone
+    
+    Return only the question, no additional text.
+    """
+    
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": "phi3.5:3.8b-mini-instruct-q5_K_M",
+        "prompt": prompt,
+        "stream": False
+    }
+    
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()
+        return response.json()["response"]
+    except requests.exceptions.RequestException as e:
+        return "Could you tell me more about your experience?"
+
+def start_interview():
+    """Initialize the interview with a greeting"""
+    greeting = "Hello! I'm your AI interviewer today. Thank you for joining. Let's start with your background in Python development."
+    speak_reply(greeting)
+    time.sleep(2)  # Short pause after greeting
 
 # Audio recording callback
 def audio_callback(indata, frames, time, status):
@@ -135,15 +187,26 @@ if __name__ == "__main__":
     # Wait for meeting to connect
     time.sleep(5)
     
+    # Start interview
+    start_interview()
+    previous_response = None
+    
     # Start the main audio processing loop
     while True:
         print("🎤 Recording Zoom audio...")
-        record_audio("zoom_audio.wav", duration=5)
+        record_audio("zoom_audio.wav", duration=20)  # Extended to 20 seconds
         
         print("📝 Transcribing...")
-        text = transcribe_audio("zoom_audio.wav")
-        print("You:", text)
-        
-        if text:
-            generate_and_speak_response(text)
+        response = transcribe_audio("zoom_audio.wav")
+        if response:
+            print("Candidate:", response)
+            previous_response = response
+            
+            # Generate and ask next question
+            next_question = generate_interview_question(previous_response)
+            print("AI Interviewer:", next_question)
+            speak_reply(next_question)
+            
+            # Wait between questions
+            time.sleep(2)
 
