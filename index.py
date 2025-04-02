@@ -80,7 +80,7 @@ def speak_reply(text):
     # Then, replace 'device_index' with the correct index.
     
     # Example for macOS with BlackHole (you might need to adjust the device index)
-    engine.setProperty('output_device', 1)  # Replace device_index with the correct index
+    engine.setProperty('MacBook Pro Microphone', 1)  # Replace device_index with the correct index
     
     engine.say(text)
     engine.runAndWait()
@@ -208,5 +208,5 @@ if __name__ == "__main__":
             speak_reply(next_question)
             
             # Wait between questions
-            time.sleep(2)
+            time.sleep(10)
 
