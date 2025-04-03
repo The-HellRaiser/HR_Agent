@@ -1,3 +1,5 @@
 /hrvoice
 /whisper.cpp
 /*.wav
+/*.txt
+/recordings
